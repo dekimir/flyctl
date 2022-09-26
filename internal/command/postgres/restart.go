@@ -14,6 +14,7 @@ import (
 	"github.com/superfly/flyctl/internal/command"
 	"github.com/superfly/flyctl/internal/command/machine"
 	"github.com/superfly/flyctl/internal/flag"
+	"github.com/superfly/flyctl/internal/watch"
 	"github.com/superfly/flyctl/iostreams"
 )
 
@@ -32,6 +33,7 @@ func newRestart() *cobra.Command {
 	flag.Add(cmd,
 		flag.App(),
 		flag.AppConfig(),
+		flag.Detach(),
 		flag.Bool{
 			Name:        "hard",
 			Description: "Forces cluster VMs restarts",
@@ -173,6 +175,14 @@ func machinesSoftRestart(ctx context.Context, machines []*api.Machine) error {
 		return fmt.Errorf("failed to restart postgres on node %s: %w", leader.ID, err)
 	}
 
+	if !flag.GetBool(ctx, "detach") {
+		fmt.Println()
+
+		if err = watch.MachineChecks(ctx); err != nil {
+			return err
+		}
+	}
+
 	fmt.Fprintf(io.Out, "Postgres cluster has been successfully restarted!\n")
 
 	return nil
@@ -291,6 +301,14 @@ func machinesHardRestart(ctx context.Context, machines []*api.Machine) (err erro
 
 	if err := machine.Restart(ctx, leader); err != nil {
 		return fmt.Errorf("failed to restart vm %s: %w", leader.ID, err)
+	}
+
+	if !flag.GetBool(ctx, "detach") {
+		fmt.Println()
+
+		if err = watch.MachineChecks(ctx); err != nil {
+			return
+		}
 	}
 
 	fmt.Fprintf(io.Out, "Postgres cluster has been successfully restarted!\n")
